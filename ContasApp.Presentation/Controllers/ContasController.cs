@@ -61,7 +61,15 @@ namespace ContasApp.Presentation.Controllers
         //GET: /Contas/Consulta
         public IActionResult Consulta()
         {
-            return View();
+            var model = new ContasConsultaViewModel();
+
+            //capturando o primeiro e ultimo dia do mês atual
+            var dataAtual = DateTime.Now;
+            model.DataInicio = new DateTime(dataAtual.Year, dataAtual.Month, 1);
+            model.DataFim = model.DataInicio?.AddMonths(1).AddDays(-1);
+
+            model = ConsultarContas(model);
+            return View(model);
         }
 
         //POST: /Contas/Consulta
@@ -70,46 +78,54 @@ namespace ContasApp.Presentation.Controllers
         {
             if (ModelState.IsValid)
             {
-                try
-                {
-                    //capturar o usuário autenticado no sistema
-                    var auth = JsonConvert.DeserializeObject<AuthViewModel>(User.Identity.Name);
-
-                    //consultar as contas no bancos de dados
-                    var contaRepository = new ContaRepository();
-                    var contas = contaRepository.GetAll(model.DataInicio, model.DataFim, auth.Id);
-
-                    //verificar se alguma conta foi obtida
-                    if (contas.Count > 0)
-                    {
-                        //armazenar as contas no objeto 'model'
-                        model.Resultado = new List<ContasConsultaResultadoViewModel>();
-                        foreach (var item in contas)
-                        {
-                            model.Resultado.Add(new ContasConsultaResultadoViewModel
-                            {
-                                Id = item.Id,
-                                Nome = item.Nome,
-                                Data = item.Data,
-                                Valor = item.Valor,
-                                Categoria = item.Categoria?.Nome,
-                                Tipo = item.Categoria?.Tipo.ToString(),
-                                Observacoes = item.Observacoes
-                            });
-                        }
-                    }
-                    else
-                    {
-                        TempData["MensagemAlerta"] = "Nenhuma conta foi obtida para o período de datas selecionado.";
-                    }
-                }
-                catch (Exception e)
-                {
-                    TempData["MensagemErro"] = e.Message;
-                }
+                model = ConsultarContas(model);
             }
 
             return View(model);
+        }
+
+        //método para consultar as contas dentro de um periodo de datas
+        private ContasConsultaViewModel ConsultarContas(ContasConsultaViewModel model)
+        {
+            try
+            {
+                //capturar o usuário autenticado no sistema
+                var auth = JsonConvert.DeserializeObject<AuthViewModel>(User.Identity.Name);
+
+                //consultar as contas no bancos de dados
+                var contaRepository = new ContaRepository();
+                var contas = contaRepository.GetAll(model.DataInicio, model.DataFim, auth.Id);
+
+                //verificar se alguma conta foi obtida
+                if (contas.Count > 0)
+                {
+                    //armazenar as contas no objeto 'model'
+                    model.Resultado = new List<ContasConsultaResultadoViewModel>();
+                    foreach (var item in contas)
+                    {
+                        model.Resultado.Add(new ContasConsultaResultadoViewModel
+                        {
+                            Id = item.Id,
+                            Nome = item.Nome,
+                            Data = item.Data,
+                            Valor = item.Valor,
+                            Categoria = item.Categoria?.Nome,
+                            Tipo = item.Categoria?.Tipo.ToString(),
+                            Observacoes = item.Observacoes
+                        });
+                    }
+                }
+                else
+                {
+                    TempData["MensagemAlerta"] = "Nenhuma conta foi obtida para o período de datas selecionado.";
+                }
+            }
+            catch (Exception e)
+            {
+                TempData["MensagemErro"] = e.Message;
+            }
+
+            return model;
         }
 
         //GET: /Contas/Edicao/{id}
